@@ -3,6 +3,7 @@
 \title{Struktur Data Lanjutan}
 \author{Tim Olimpiade Komputer Indonesia}
 \date{}
+\lstset{escapeinside={<@}{@>}}
 
 \begin{document}
 
@@ -183,12 +184,230 @@ set<int, decltype(cmp)> s(cmp);
 \begin{frame}
 \frametitle{Segment Tree}
 \begin{itemize}
-  \item TBA
+  \item Segment Tree merupakan struktur data alternatif untuk menyelesaikan persoalan Range Sum Query.
+  \item Segment Tree merupakan pohon biner (binary tree). Tiap node memiliki informasi nilai dari suatu rentang atau segmen. Ukuran segmen dari suatu node pada segment tree merupakan gabungan segmen dari anak-anaknya.
 \end{itemize}
 \end{frame}
 
 \begin{frame}
-\frametitle{Sparse Tree}
+\frametitle{Ilustrasi Segment Tree}
+\begin{itemize}
+  \item Misalkan kita memiliki array berukuran N. Segment Tree dari array tersebut memiliki log N tingkat, masing-masing tingkat merepresentasikan segmen berukuran $2^l$. 
+  \item Secara keseluruhan, terdapat maksimal 2*N segmen. Kompleksitas memori dari Segment Tree ialah O(N).
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Ilustrasi Segment Tree (lanj.)}
+\begin{itemize}
+  \item Sebagai contoh, berikut merupakan bentuk segment tree untuk menghitung range sum query dari array $[5, -3, 2, 1, 4, 4, -1, 6]$.
+  \item Tiap node memiliki informasi sum dari segmen yang dilingkupinya.
+\end{itemize}
+\begin{center}
+  \includegraphics[width=10cm]{asset/segtree-init.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Inisiasi Segment Tree}
+\begin{itemize}
+  \item Berikut adalah contoh kode untuk menginisiasi segment tree untuk menghitung range sum query.
+\begin{lstlisting}
+int st[MAXA];         // informasi segment sum
+
+void build(int idx, int l, int r) {
+  if (l == r) {
+    st[idx] = val[l];
+    return;
+  }
+
+  int mid = (l + r) / 2;
+  build(idx * 2 + 1, l, mid); // rekursif ke kiri
+  build(idx * 2 + 2, mid + 1, r); // rekursif ke kanan
+  
+  st[idx] = st[lc] + st[rc];
+}
+
+...
+bulid(1, 0, N); // pemanggilan awal
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Query pada Segment Tree}
+\begin{itemize}
+  \item Untuk mendapatkan sum dari interval L sampai R, kita cukup menjumlahkan segmen-segmen yang membentuk interval L sampai R.
+  \item Kompleksitas untuk tiap query adalah O(log N).
+\end{itemize}
+\begin{center}
+  \includegraphics[width=10cm]{asset/segtree-sum.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Kode Query pada Segment Tree}
+\begin{itemize}
+  \item Query dapat dicapai dengan melakukan penjelajahan segment tree dari segmen terbesar, dan berhenti ketika kita berada di segmen yang sepenuhnya overlap dengan range yang ingin dijumlahkan.
+  \begin{lstlisting}
+int query(int idx, int l, int r, int x, int y) {
+  if (x > r || y < l)
+    // this node is outside the range
+    return 0;
+
+  if (x <= l && r <= y)
+    // fully overlap node
+    return st[idx];
+  
+  int mid = (l + r) / 2;
+  return query(idx * 2 + 1, l, mid, x, y) + 
+         query(idx * 2 + 2, mid + 1, r, x, y);
+}
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Single Point Update pada Segment Tree}
+\begin{itemize}
+  \item Untuk mengupdate nilai elemen di suatu indeks, kita cukup melakukan udpdate di seluruh segmen yang melingkupi indeks tersebut.
+  \item Kompleksitas untuk tiap update adalah O(log N).
+\end{itemize}
+\begin{center}
+  \includegraphics[width=10cm]{asset/segtree-update.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Kode Single Point Update}
+\begin{itemize}
+  \item Berikut adalah contoh koe jika Anda ingin menambahkan value v pada suatu index x
+  \begin{lstlisting}
+void update(int idx, int l, int r, int x, int v) {
+  // update the sum of values in this range
+  st[idx] += v;     
+
+  if (l == r) 
+    // leaf node
+    return;
+
+  // traverse the correct child
+  int mid = (l + r) / 2;
+  if (x <= mid) 
+    update(idx * 2 + 1, l, mid, x, v);
+  else 
+    update(idx * 2 + 2, mid + 1, r, x, v);
+}
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Range Update pada Segment Tree}
+\begin{itemize}
+  \item Bagaimana jika kita harus mengupdate beberapa elemen sekaligus dalam suatu range?
+  \item Misalnya, untuk suatu range [A,B], tambahkan nilainya dengan v.
+  \item Kita bisa melakukan penjelajahan pada segment tree, dan berhenti di leaf yang termasuk dari range.
+  \item Namun, kasus terburuknya adalah jika kita harus mengupdate keseluruhan range, sehingga kita harus mengupdate keseluruhan segment tree, yaitu O(N).
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Lazy Propagation}
+\begin{itemize}
+  \item Agar bisa melakukan range update dengan lebih efisien, kita cukup bisa berhenti pada segmen yang sudah sepenuhnya overlap dengan range yang ingin diupdate.
+  \item Karena kita berhenti di segmen X, kita sebenarnya belum mengupdate informasi pada segmen-segmen yang merupakan anak dari X.
+  \item Karena itu, kita perlu menyiapkan informasi tambahan yang menyatakan update yang belum terselesaikan. Informasi ini akan dipropagasi nanti ketika kita melakukan penjelajahan di segmen tersebut.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Ilustrasi Lazy Propagation}
+\begin{itemize}
+  \item Berikut adalah ilustrasi dari lazy propagation untuk melakukan range update.
+\end{itemize}
+\begin{center}
+  \includegraphics[width=10cm]{asset/segtree-update-lazy.png}
+\end{center}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Kode Lazy Propagation}
+\begin{itemize}
+  \item Berikut adalah kode untuk melakukan lazy propagation.
+\end{itemize}
+  \begin{lstlisting}
+void update(int idx, int l, int r, int x, int y, int v) {
+  if (x < r || l > y) return; // stop if outside the range
+  if (x <= l && r <= y) {
+    // update the sum for this range
+    st[idx] += (r - l + 1) * v;     
+    // update the lazy value for this range
+    lazy[idx] += v;                 
+    return;
+  }
+  
+  int mid = (l + r)/2, lc = idx * 2 +1, rc = idx * 2 +2;
+
+  propagate(idx, l, r);
+
+  update(lc, l, mid, x, y, v);    // check the left child
+  update(rc, mid + 1, r, x, y, v);// check the right child
+  
+  st[idx] = st[lc] + st[rc];      // range update
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Kode Propagasi}
+\begin{itemize}
+  \item Fungsi tambahan propagate adalah untuk meneruskan update yang belum dieksekusi ke anak segmen.
+\end{itemize}
+  \begin{lstlisting}
+void propagate(int idx, int l, int r) {
+  // hanya perlu dilakukan jika nilai lazy tidak 0
+  if (lazy[idx]) { 
+    int mid = (l + r)/2, lc = idx * 2 +1, rc = idx * 2 +2;
+    // propagate to left child
+    lazy[lc] += lazy[idx]; st[lc] += (mid - l + 1) * lazy[idx]; 
+    // propagate to right child
+    lazy[rc] += lazy[idx]; st[rc] += (r - mid) * lazy[idx];
+
+    lazy[idx] = 0; // clear the lazy value
+  }
+}
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Query dengan Lazy Propagation}
+\begin{itemize}
+  \item Query pada segment-tree yang mengandung lazy propagation persis pada query biasa, hanya saja cukup ditambahkan fungsi propagasi sebagai berikut.
+  \begin{lstlisting}
+int query(int idx, int l, int r, int x, int y) {
+  if (x > r || y < l)
+    // this node is outside the range
+    return 0;
+
+  if (x <= l && r <= y)
+    // fully overlap node
+    return st[idx];
+
+  <@\textcolor{red}{propagate(idx, l, r);}@>
+  
+  int mid = (l + r) / 2;
+  return query(idx * 2 + 1, l, mid, x, y) + 
+         query(idx * 2 + 2, mid + 1, r, x, y);
+}
+\end{lstlisting}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Sparse Table}
 \begin{itemize}
   \item TBA
 \end{itemize}
